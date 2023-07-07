@@ -1,4 +1,5 @@
 import { Patient } from "./patient";
+import { ExportDecision } from "./prescriber_facade";
 
 export enum Symptom {
   Headache = "Headache",
@@ -9,6 +10,11 @@ export enum Symptom {
 
 export class Prescriber {
   private prescription_list: Prescription[] = [];
+  private waiting_list: {
+    patient: Patient;
+    symptom: Symptom[];
+    is_export: ExportDecision;
+  }[] = [];
 
   public setPrescription(disease_name: string) {
     if (prescription_map[disease_name]) {
@@ -28,6 +34,19 @@ export class Prescriber {
     });
 
     return patient_prescription;
+  }
+
+  public addPatient(
+    patient: Patient,
+    symptom: Symptom[],
+    is_export: ExportDecision
+  ) {
+    this.waiting_list.push({ patient, symptom, is_export });
+    return;
+  }
+
+  public getNowdiagnosePatient() {
+    return this.waiting_list.shift();
   }
 }
 
@@ -82,7 +101,6 @@ export class Prescription {
 
   private setMedicines(medicines: string[]) {
     medicines.forEach((medicine) => {
-      //FIXME: 在提問範例藥物和長度規範不符
       if (medicine.length < 2 || medicine.length > 100) {
         throw Error("wrong prescription medicine");
       }
@@ -122,7 +140,6 @@ export class SleepApneaSyndromePrescription extends Prescription {
   }
 }
 
-// FIXME: 到最後再修改一下
 const prescription_map: { [name: string]: Prescription } = {
   "COVID-19": new Prescription(
     "清冠一號",

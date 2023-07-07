@@ -42,59 +42,67 @@ export class PrescriberFacade {
     diseases.forEach((disease) => this.prescriber.setPrescription(disease));
   }
 
-  public async diagnosePatient(): Promise<void> {
+  public async addPatient(): Promise<void> {
     const id = await readline.enterPatientId();
     const patient = this.patient_database.findPatient(id);
     if (!patient) {
-      return await this.diagnosePatient();
+      return await this.addPatient();
     }
-
     const symptoms = await readline.enterSymptom();
-    const prescriptions = this.prescriber.diagnosePatient(patient, symptoms);
-    const patient_case = new Case(patient.name, symptoms, prescriptions);
-    patient.addCase(patient_case);
-
-    await this.exportCase(patient_case);
-
-    return await this.diagnosePatient();
-  }
-
-  private async exportCase(targert_case: Case) {
     const answer = await readline.enterExportCaseDecision();
+    this.prescriber.addPatient(patient, symptoms, answer);
 
-    if (answer === ExportDecision.JSON) {
-      this.exportJsonFile(targert_case);
-    }
-
-    if (answer === ExportDecision.CSV) {
-      this.exportCsvFile(targert_case);
-    }
-
-    console.log(answer);
-  }
-
-  private exportJsonFile(targert_case: Case) {
-    const jsonString = JSON.stringify(targert_case, null, 2);
-    const filename = `${targert_case.getName()}-${new Date().getTime()}`;
-    const filePath = `${filename}.json`;
-
-    fs.writeFileSync(filePath, jsonString, "utf-8");
     return;
   }
 
-  private exportCsvFile(targert_case: Case) {
-    const csvHeader = "name,create_time,symptoms,prescriptions\n";
-    const prescriptions = JSON.stringify(targert_case.getPrescriptionse());
-    const csvRows = `${targert_case.getName()},${targert_case
-      .getCreateTime()
-      .toDateString()},${targert_case
-      .getSymptoms()
-      .join("-")},${prescriptions}`;
-    const csvContent = csvHeader + csvRows;
-    const filename = `${targert_case.getName()}-${new Date().getTime()}`;
-    const filePath = `${filename}.csv`;
+  public diagnosePatient(): void {
+    const patient_data = this.prescriber.getNowdiagnosePatient();
+    if (!patient_data) {
+      return;
+    }
 
-    fs.writeFileSync(filePath, csvContent, "utf-8");
+    const prescriptions = this.prescriber.diagnosePatient(
+      patient_data.patient,
+      patient_data.symptom
+    );
+
+    const patient_case = new Case(
+      patient_data.patient.name,
+      patient_data.symptom,
+      prescriptions
+    );
+
+    patient_data.patient.addCase(patient_case);
+    this.exportCase(patient_data.is_export, patient_case);
+
+    setTimeout(() => {}, 3000);
+    return;
+  }
+
+  private async exportCase(is_export: ExportDecision, targert_case: Case) {
+    if (is_export === ExportDecision.NotExport) {
+      return;
+    }
+
+    let fileContent: string = "";
+    if (is_export === ExportDecision.JSON) {
+      fileContent = JSON.stringify(targert_case, null, 2);
+    }
+
+    if (is_export === ExportDecision.CSV) {
+      const csvHeader = "name,create_time,symptoms,prescriptions\n";
+      const prescriptions = JSON.stringify(targert_case.getPrescriptionse());
+      const csvRows = `${targert_case.getName()},${targert_case
+        .getCreateTime()
+        .toDateString()},${targert_case
+        .getSymptoms()
+        .join("-")},${prescriptions}`;
+      fileContent = csvHeader + csvRows;
+    }
+
+    const filePath = `${targert_case.getName()}-${new Date().getTime()}.json`;
+    fs.writeFileSync(filePath, fileContent, "utf-8");
+    return;
   }
 }
 
